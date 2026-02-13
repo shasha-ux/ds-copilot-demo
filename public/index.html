@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DS Copilot Designer Console</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="panel input-panel">
+        <header class="panel-header">
+          <h1>DS Copilot Designer Console</h1>
+          <p class="sub">PRD/원페이저에서 lowfi/prototype/hifi를 생성하고 DS 위반을 바로 확인합니다.</p>
+        </header>
+
+        <div class="block">
+          <h2>1) 기획 입력</h2>
+          <label for="prompt">요구사항 입력</label>
+          <textarea id="prompt" rows="6">예약 취소 팝업을 만들어줘. 취소 사유를 선택하면 하단 상세 입력창이 나오고 완료 시 토스트 메시지가 떠야 해.</textarea>
+          <div class="helper-row">
+            <button class="ghost" id="tplCancelBtn">예약취소 템플릿</button>
+            <button class="ghost" id="tplListBtn">예약리스트 템플릿</button>
+            <button class="ghost" id="tplNewBizBtn">신사업 템플릿</button>
+          </div>
+        </div>
+
+        <div class="block">
+          <h2>2) 데이터 컨텍스트</h2>
+          <label for="schemaUrl">Swagger/Schema URL (선택)</label>
+          <input id="schemaUrl" placeholder="https://.../openapi.json" />
+          <label for="schema">데이터 스키마 (JSON/Swagger)</label>
+          <textarea id="schema" rows="8">{
+  "cancelReason": ["고객요청", "중복예약", "기타"],
+  "reservationId": "string",
+  "partnerName": "string"
+}</textarea>
+          <div class="helper-row">
+            <button class="ghost" id="loadSchemaUrlBtn">URL에서 불러오기</button>
+            <button class="ghost" id="loadDataSampleBtn">JSON 샘플 불러오기</button>
+            <button class="ghost" id="loadSwaggerSampleBtn">Swagger 샘플 불러오기</button>
+            <button class="ghost" id="clearSchemaBtn">스키마 비우기</button>
+          </div>
+          <label for="fidelity">Fidelity</label>
+          <select id="fidelity">
+            <option value="lowfi">lowfi</option>
+            <option value="prototype" selected>prototype</option>
+            <option value="hifi">hifi</option>
+          </select>
+        </div>
+
+        <div class="block">
+          <h2>3) 생성/내보내기</h2>
+          <div class="action-grid">
+            <button id="generateBtn">Generate</button>
+            <button id="generateMatrixBtn">Generate Trio</button>
+            <button id="runAllBtn">One-Click Run</button>
+            <button id="codeExportBtn">Code Export</button>
+            <button id="bundleExportBtn">Bundle Export</button>
+            <button id="bundleSaveBtn">Bundle Save</button>
+            <button id="bundleArchiveBtn">Bundle Archive</button>
+          </div>
+        </div>
+
+        <details class="block" open>
+          <summary>4) 프로젝트 설정</summary>
+          <label for="projectName">프로젝트 이름</label>
+          <input id="projectName" value="신사업 예약 취소" />
+          <label for="rankingPreset">Ranking Preset</label>
+          <select id="rankingPreset">
+            <option value="balanced" selected>balanced</option>
+            <option value="speed_first">speed_first</option>
+            <option value="hifi_first">hifi_first</option>
+          </select>
+          <label for="rankingPolicyOverride">Ranking Policy Override (JSON)</label>
+          <textarea id="rankingPolicyOverride" rows="4">{}</textarea>
+          <div class="action-grid compact">
+            <button class="ghost" id="createProjectBtn">Project Create</button>
+            <button class="ghost" id="saveProjectConfigBtn">Project Config Save</button>
+            <button class="ghost" id="runProjectBtn">Project Generate</button>
+            <button class="ghost" id="listProjectsBtn">Project List</button>
+          </div>
+        </details>
+
+        <details class="block">
+          <summary>5) 승인 워크플로우</summary>
+          <label for="approvalRequestId">Approval Request ID</label>
+          <input id="approvalRequestId" />
+          <label for="approverName">Approver</label>
+          <input id="approverName" value="design-lead" />
+          <label for="approverRole">Approver Role</label>
+          <select id="approverRole">
+            <option value="design_lead" selected>design_lead</option>
+            <option value="platform_lead">platform_lead</option>
+            <option value="viewer">viewer</option>
+          </select>
+          <label for="approvalStatusFilter">Approval Status Filter</label>
+          <select id="approvalStatusFilter">
+            <option value="" selected>all</option>
+            <option value="pending">pending</option>
+            <option value="approved">approved</option>
+            <option value="used">used</option>
+            <option value="expired">expired</option>
+          </select>
+          <div class="action-grid compact">
+            <button class="ghost" id="listApprovalsBtn">Approval List</button>
+            <button class="ghost" id="alertApprovalsBtn">Approval Alerts</button>
+            <button class="ghost" id="cleanupApprovalsBtn">Approval Cleanup</button>
+            <button class="ghost" id="approveRequestBtn">Approval Approve</button>
+          </div>
+        </details>
+      </section>
+
+      <section class="panel output-panel">
+        <header class="panel-header">
+          <h2>Preview Workspace</h2>
+          <p class="sub">디자이너 기준 핵심 정보만 상단에 배치하고, 기술 로그는 아래 접어서 확인합니다.</p>
+          <div class="status-row">
+            <span class="status-chip" id="workflowStatus">Flow: idle</span>
+            <span class="status-chip" id="projectStatus">Project: none</span>
+            <span class="status-chip" id="approvalStatus">Approval: none</span>
+          </div>
+        </header>
+
+        <div id="kpiBar" class="kpi-bar"></div>
+        <div id="summary" class="summary-card"></div>
+        <div class="state-tabs" id="stateTabs"></div>
+        <div id="preview"></div>
+
+        <details class="log-block">
+          <summary>Validation</summary>
+          <pre id="validation"></pre>
+        </details>
+        <details class="log-block">
+          <summary>Fidelity Matrix</summary>
+          <pre id="matrixOutput"></pre>
+        </details>
+        <details class="log-block">
+          <summary>Figma Event Payload</summary>
+          <pre id="figmaPayload"></pre>
+        </details>
+        <details class="log-block">
+          <summary>Code Export</summary>
+          <div class="helper-row">
+            <button class="ghost" id="copyCodeBtn">코드 복사</button>
+          </div>
+          <pre id="codeExport"></pre>
+        </details>
+        <details class="log-block">
+          <summary>Bundle Files</summary>
+          <div class="helper-row">
+            <button class="ghost" id="copyBundleBtn">번들 미리보기 복사</button>
+          </div>
+          <pre id="bundleExport"></pre>
+        </details>
+        <details class="log-block">
+          <summary>Saved Bundles</summary>
+          <pre id="savedBundles"></pre>
+        </details>
+        <details class="log-block">
+          <summary>Bundle Archive</summary>
+          <pre id="bundleArchive"></pre>
+        </details>
+        <details class="log-block">
+          <summary>Project Workflow</summary>
+          <pre id="projectOutput"></pre>
+        </details>
+        <details class="log-block">
+          <summary>Approval Workflow</summary>
+          <pre id="approvalOutput"></pre>
+        </details>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

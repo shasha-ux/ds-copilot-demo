@@ -1,0 +1,12 @@
+{
+  "name": "DS Copilot Demo v2",
+  "id": "ds-copilot-demo-plugin-v2",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": ["*"],
+    "reasoning": "Development build: plugin needs network access to local DS Copilot API and schema URLs."
+  }
+}

@@ -13,6 +13,10 @@ services:
         value: 0.0.0.0
       - key: FIGMA_ACCESS_TOKEN
         sync: false
+      - key: DS_CONFLUENCE_BASE_URL
+        value: "https://gccom.atlassian.net"
+      - key: DS_ALLOWED_CONTEXT_HOSTS
+        value: "gccom.atlassian.net"
       - key: DS_ALLOWED_SCHEMA_HOSTS
         value: ""
       - key: DS_SCHEMA_FETCH_AUTH_MODE

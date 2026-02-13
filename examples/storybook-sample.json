@@ -1,0 +1,46 @@
+{
+  "components": [
+    {
+      "name": "YEO_Button",
+      "props": {
+        "variant": { "type": "enum", "options": ["primary", "secondary", "ghost"] },
+        "size": { "type": "enum", "options": ["sm", "md", "lg"] },
+        "disabled": { "type": "boolean" }
+      }
+    },
+    {
+      "name": "YEO_Modal",
+      "props": {
+        "open": { "type": "boolean" },
+        "title": { "type": "string" }
+      }
+    },
+    {
+      "name": "YEO_Dropdown",
+      "props": {
+        "value": { "type": "string" },
+        "options": { "type": "array" }
+      }
+    },
+    {
+      "name": "YEO_Radio_Group",
+      "props": {
+        "value": { "type": "string" },
+        "options": { "type": "array" }
+      }
+    },
+    {
+      "name": "YEO_TextArea",
+      "props": {
+        "value": { "type": "string" },
+        "maxLength": { "type": "number" }
+      }
+    },
+    {
+      "name": "YEO_Toast",
+      "props": {
+        "message": { "type": "string" }
+      }
+    }
+  ]
+}

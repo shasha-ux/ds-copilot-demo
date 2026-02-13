@@ -1,0 +1,254 @@
+{
+  "rule_set_name": "Yeo-Partner-Standard",
+  "version": "1.1.0",
+  "foundation_mapping": {
+    "spacing": "8px_base_system",
+    "color_token": "yeo.token.color",
+    "typography": "yeo.token.text_style"
+  },
+  "components": [
+    "YEO_Modal",
+    "YEO_Button",
+    "YEO_TextArea",
+    "YEO_Radio_Group",
+    "YEO_Dropdown",
+    "YEO_Input",
+    "YEO_Toast",
+    "YEO_Table",
+    "YEO_Badge"
+  ],
+  "component_keys": {
+    "YEO_Button": "SAMPLE_KEY_BUTTON",
+    "YEO_Modal": "SAMPLE_KEY_MODAL",
+    "YEO_Badge": "SAMPLE_KEY_BADGE",
+    "YEO_Dropdown": "SAMPLE_KEY_DROPDOWN",
+    "YEO_Input": "SAMPLE_KEY_INPUT",
+    "YEO_Radio_Group": "SAMPLE_KEY_RADIO_GROUP",
+    "YEO_Table": "SAMPLE_KEY_TABLE",
+    "YEO_TextArea": "SAMPLE_KEY_TEXTAREA",
+    "YEO_Toast": "SAMPLE_KEY_TOAST"
+  },
+  "component_layouts": {
+    "YEO_Modal": {
+      "minWidth": 520,
+      "fixedHeight": 280,
+      "layoutGrow": 0
+    },
+    "YEO_Dropdown": {
+      "minWidth": 280,
+      "fixedHeight": 40,
+      "layoutGrow": 1
+    },
+    "YEO_Radio_Group": {
+      "minWidth": 320,
+      "fixedHeight": 40,
+      "layoutGrow": 1
+    },
+    "YEO_TextArea": {
+      "minWidth": 420,
+      "fixedHeight": 120,
+      "layoutGrow": 1
+    },
+    "YEO_Button": {
+      "minWidth": 120,
+      "fixedHeight": 40,
+      "layoutGrow": 0
+    },
+    "YEO_Table": {
+      "minWidth": 640,
+      "fixedHeight": 240,
+      "layoutGrow": 1
+    },
+    "YEO_Input": {
+      "minWidth": 320,
+      "fixedHeight": 40,
+      "layoutGrow": 1
+    },
+    "YEO_Toast": {
+      "minWidth": 240,
+      "fixedHeight": 48,
+      "layoutGrow": 0
+    },
+    "YEO_Badge": {
+      "minWidth": 80,
+      "fixedHeight": 24,
+      "layoutGrow": 0
+    }
+  },
+  "layout_strategy": {
+    "action_components": [
+      "YEO_Button"
+    ],
+    "stretch_components": [
+      "YEO_Input",
+      "YEO_Dropdown",
+      "YEO_Radio_Group",
+      "YEO_TextArea",
+      "YEO_Table"
+    ],
+    "row_group_components": [
+      "YEO_Button"
+    ],
+    "row_item_spacing": 8,
+    "column_item_spacing": 8
+  },
+  "pattern_strategy": {
+    "modal_footer_actions": true,
+    "table_filter_bar": true,
+    "table_filter_components": [
+      "YEO_Input",
+      "YEO_Dropdown",
+      "YEO_Button"
+    ]
+  },
+  "compliance_policy": {
+    "generation": {
+      "block": [
+        "Critical"
+      ],
+      "warn": [
+        "Major",
+        "New"
+      ]
+    },
+    "validation": {
+      "block": [
+        "Critical"
+      ],
+      "warn": [
+        "Major",
+        "New"
+      ]
+    },
+    "deploy": {
+      "block": [
+        "Critical",
+        "Major"
+      ],
+      "warn": [
+        "New"
+      ]
+    }
+  },
+  "approval_policy": {
+    "enabled": true,
+    "stage": "deploy",
+    "require_for": [
+      "Major",
+      "Critical"
+    ],
+    "token_ttl_minutes": 60,
+    "one_time_token": true,
+    "allowed_roles": [
+      "design_lead",
+      "platform_lead"
+    ],
+    "action_roles": {
+      "bundle_save": [
+        "design_lead",
+        "platform_lead"
+      ],
+      "pipeline_run": [
+        "platform_lead"
+      ],
+      "project_generate": [
+        "design_lead",
+        "platform_lead"
+      ]
+    }
+  },
+  "deploy_guard": {
+    "enabled": true,
+    "require_component_keys_on_deploy": true,
+    "require_storybook_src_dir": true
+  },
+  "ranking_policy": {
+    "severity_penalty": {
+      "Critical": 100,
+      "Major": 25,
+      "New": 5
+    },
+    "blocked_penalty": 80,
+    "complexity_penalty": {
+      "threshold": 7,
+      "component_over_threshold": 2,
+      "section_over_threshold": 1
+    },
+    "balance_penalty_per_component_diff": 2,
+    "target_component_count": 5,
+    "fidelity_bonus": {
+      "lowfi": 0,
+      "prototype": 4,
+      "hifi": 2
+    }
+  },
+  "ranking_presets": {
+    "balanced": {},
+    "speed_first": {
+      "complexity_penalty": {
+        "threshold": 5,
+        "component_over_threshold": 4,
+        "section_over_threshold": 2
+      },
+      "fidelity_bonus": {
+        "lowfi": 3,
+        "prototype": 2,
+        "hifi": 0
+      }
+    },
+    "hifi_first": {
+      "target_component_count": 7,
+      "balance_penalty_per_component_diff": 1,
+      "fidelity_bonus": {
+        "lowfi": 0,
+        "prototype": 3,
+        "hifi": 6
+      }
+    }
+  },
+  "component_aliases": {
+    "YEO_Radio_Group": [
+      "Radio Group",
+      "RadioGroup",
+      "YEO_RadioGroup"
+    ],
+    "YEO_TextArea": [
+      "Textarea",
+      "Text Area",
+      "YEO_Text_Area"
+    ],
+    "YEO_Dropdown": [
+      "Select",
+      "Dropdown",
+      "YEO_Select"
+    ],
+    "YEO_Button": [
+      "Button",
+      "Action Button"
+    ]
+  },
+  "state_variants_required": [
+    "normal",
+    "empty",
+    "loading",
+    "error",
+    "skeleton"
+  ],
+  "component_inference": [
+    {
+      "intent": "data_entry",
+      "data_type": "enum",
+      "option_count_threshold": 5,
+      "recommended_component": "YEO_Dropdown",
+      "alternative_component": "YEO_Radio_Group"
+    },
+    {
+      "intent": "status_display",
+      "mapping": {
+        "pending": "YEO_Badge_Yellow",
+        "confirmed": "YEO_Badge_Blue",
+        "canceled": "YEO_Badge_Red"
+      }
+    }
+  ]
+}

@@ -38,9 +38,18 @@ fs.writeFileSync(uiPath, updatedUi, 'utf8');
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 const origin = new URL(apiBase).origin;
 manifest.networkAccess = manifest.networkAccess || {};
-manifest.networkAccess.allowedDomains = [origin];
-manifest.networkAccess.reasoning =
-  'Team deployment: plugin calls shared DS Copilot API endpoint.';
+// Figma manifest networkAccess generally expects https origins for remote calls.
+// For local dev (http://localhost...) we keep the existing allowedDomains (often "*")
+// to avoid manifest validation errors in some Figma builds.
+if (origin.startsWith('https://')) {
+  manifest.networkAccess.allowedDomains = [origin];
+  manifest.networkAccess.reasoning =
+    'Team deployment: plugin calls shared DS Copilot API endpoint.';
+} else {
+  console.warn(
+    `warning: origin is not https (${origin}). Keeping existing manifest.networkAccess.allowedDomains as-is.`
+  );
+}
 fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
 
 console.log(`updated plugin api base: ${apiBase}`);

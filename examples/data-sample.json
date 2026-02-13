@@ -1,0 +1,16 @@
+{
+  "rows": [
+    {
+      "reservationId": "R-240211-001",
+      "partnerName": "강남점",
+      "status": "pending",
+      "cancelReason": "고객요청"
+    },
+    {
+      "reservationId": "R-240211-002",
+      "partnerName": "홍대점",
+      "status": "confirmed",
+      "cancelReason": "중복예약"
+    }
+  ]
+}

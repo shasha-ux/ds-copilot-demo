@@ -19,7 +19,28 @@ import {
 } from './lib/project-store.mjs';
 import { buildMatrixResult, resolveRankingContext } from './lib/ranking.mjs';
 import { fetchSchemaFromUrl, resolveSchemaInput } from './lib/schema-source.mjs';
-import { fetchContextFromUrl, mergeContextText, searchConfluenceDocuments } from './lib/context-source.mjs';
+import {
+  extractConfluencePageId,
+  fetchConfluenceContextById,
+  fetchContextFromUrl,
+  fetchContextFromUrlWithHeaders,
+  mergeContextText,
+  searchConfluenceDocuments,
+  searchConfluenceDocumentsWithHeaders,
+  searchConfluenceDocumentsWithSession
+} from './lib/context-source.mjs';
+import {
+  completeAtlassianConnect,
+  getConnectStatus,
+  getSessionFromAuthorizationHeader,
+  startAtlassianConnect
+} from './lib/atlassian-oauth.mjs';
+import {
+  buildPersonalConfluenceAuthHeaders,
+  endPersonalConfluenceSession,
+  getPersonalConfluenceSessionFromAuthorizationHeader,
+  startPersonalConfluenceSession
+} from './lib/confluence-personal-auth.mjs';
 import {
   extractFigmaFileKeyFromUrl,
   fetchFigmaLibraryComponents,
@@ -80,6 +101,11 @@ function readBody(req) {
 function sendJSON(res, statusCode, body) {
   res.writeHead(statusCode, withCors({ 'Content-Type': 'application/json; charset=utf-8' }));
   res.end(JSON.stringify(body, null, 2));
+}
+
+function sendHtml(res, statusCode, html) {
+  res.writeHead(statusCode, withCors({ 'Content-Type': 'text/html; charset=utf-8' }));
+  res.end(String(html || ''));
 }
 
 function evaluateStageCompliance(validation, stage, allowNew = true) {
@@ -277,6 +303,144 @@ const server = http.createServer(async (req, res) => {
   const pathname = requestUrl.pathname;
   const pathSegments = pathname.split('/').filter(Boolean);
 
+  // Confluence per-user connect (Atlassian OAuth 3LO).
+  if (req.method === 'POST' && pathname === '/api/auth/atlassian/start') {
+    try {
+      const raw = await readBody(req);
+      const body = JSON.parse(raw || '{}');
+      const { connectToken, url } = startAtlassianConnect({
+        requestedBy: {
+          source: 'figma-plugin',
+          figmaUserId: String(body.figmaUserId || '').trim() || null,
+          figmaUserName: String(body.figmaUserName || '').trim() || null
+        }
+      });
+      sendJSON(res, 200, { ok: true, connectToken, url });
+    } catch (error) {
+      sendJSON(res, 400, { ok: false, error: 'Failed to start Atlassian connect', detail: error.message });
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/auth/atlassian/callback') {
+    try {
+      const code = requestUrl.searchParams.get('code') || '';
+      const state = requestUrl.searchParams.get('state') || '';
+      const result = await completeAtlassianConnect({ connectToken: state, code });
+      sendHtml(
+        res,
+        200,
+        `<html><body style="font-family:system-ui;padding:24px;">
+          <h2>연결 완료</h2>
+          <p>컨플 계정 연결이 완료되었습니다.</p>
+          <p>Figma로 돌아가서 플러그인에서 <b>연결 상태 확인</b>을 누르세요.</p>
+          <pre style="background:#f6f7f9;padding:12px;border-radius:8px;">resource: ${result.resourceName || ''}\nurl: ${result.resourceUrl || ''}</pre>
+        </body></html>`
+      );
+    } catch (error) {
+      sendHtml(
+        res,
+        400,
+        `<html><body style="font-family:system-ui;padding:24px;">
+          <h2>연결 실패</h2>
+          <p>${String(error.message || error)}</p>
+        </body></html>`
+      );
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/auth/atlassian/status') {
+    const connectToken = requestUrl.searchParams.get('connectToken') || '';
+    const status = getConnectStatus(connectToken);
+    sendJSON(res, status.ok ? 200 : 404, status);
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/auth/atlassian/me') {
+    try {
+      const session = await getSessionFromAuthorizationHeader(req.headers.authorization);
+      if (!session) {
+        sendJSON(res, 401, { ok: false, error: 'Not connected' });
+        return;
+      }
+      sendJSON(res, 200, {
+        ok: true,
+        resourceUrl: session.resourceUrl,
+        resourceName: session.resourceName,
+        requestedBy: session.requestedBy || {}
+      });
+    } catch (error) {
+      sendJSON(res, 400, { ok: false, error: 'Failed to check session', detail: error.message });
+    }
+    return;
+  }
+
+  // Confluence personal token connect (per-user API token).
+  if (req.method === 'POST' && pathname === '/api/auth/confluence/personal/start') {
+    try {
+      const raw = await readBody(req);
+      const body = JSON.parse(raw || '{}');
+      const confluenceBaseUrl = process.env.DS_CONFLUENCE_BASE_URL || '';
+      const result = await startPersonalConfluenceSession({
+        confluenceBaseUrl,
+        email: body.email || '',
+        apiToken: body.apiToken || '',
+        requestedBy: {
+          source: 'figma-plugin'
+        }
+      });
+      sendJSON(res, 200, { ok: true, sessionToken: result.sessionToken, verified: result.verified });
+    } catch (error) {
+      sendJSON(res, 400, { ok: false, error: 'Failed to start Confluence personal session', detail: error.message });
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/auth/confluence/personal/end') {
+    try {
+      const session = getPersonalConfluenceSessionFromAuthorizationHeader(req.headers.authorization);
+      if (!session) {
+        sendJSON(res, 200, { ok: true, removed: false });
+        return;
+      }
+      const result = endPersonalConfluenceSession(session.sessionToken);
+      sendJSON(res, 200, result);
+    } catch (error) {
+      sendJSON(res, 400, { ok: false, error: 'Failed to end personal session', detail: error.message });
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/auth/confluence/me') {
+    try {
+      const oauth = await getSessionFromAuthorizationHeader(req.headers.authorization);
+      if (oauth) {
+        sendJSON(res, 200, {
+          ok: true,
+          mode: 'oauth',
+          resourceUrl: oauth.resourceUrl,
+          resourceName: oauth.resourceName
+        });
+        return;
+      }
+      const personal = getPersonalConfluenceSessionFromAuthorizationHeader(req.headers.authorization);
+      if (personal) {
+        sendJSON(res, 200, {
+          ok: true,
+          mode: 'personal',
+          confluenceBaseUrl: personal.confluenceBaseUrl,
+          verified: personal.verified || {}
+        });
+        return;
+      }
+      sendJSON(res, 401, { ok: false, error: 'Not connected' });
+    } catch (error) {
+      sendJSON(res, 400, { ok: false, error: 'Failed to check confluence session', detail: error.message });
+    }
+    return;
+  }
+
   if (req.method === 'GET' && pathname === '/api/health') {
     sendJSON(res, 200, { ok: true, service: 'ds-copilot-demo' });
     return;
@@ -384,13 +548,72 @@ const server = http.createServer(async (req, res) => {
     try {
       const raw = await readBody(req);
       const body = JSON.parse(raw || '{}');
-      const context = await resolveContextInput(body);
+      const url = String(body.contextUrl || '').trim();
+      const inlineText = String(body.contextText || '').trim();
+
+      // When inline text exists, treat it as source-of-truth (no fetch needed).
+      if (inlineText) {
+        sendJSON(res, 200, {
+          ok: true,
+          contextUrl: url || null,
+          contextText: inlineText,
+          contextSource: 'inline',
+          contextSignals: {}
+        });
+        return;
+      }
+
+      if (!url) {
+        sendJSON(res, 400, { error: 'contextUrl is required (or provide contextText)' });
+        return;
+      }
+
+      const session = await getSessionFromAuthorizationHeader(req.headers.authorization);
+      const personal = getPersonalConfluenceSessionFromAuthorizationHeader(req.headers.authorization);
+
+      // If connected, prefer Confluence API by pageId.
+      if (session) {
+        const pageId = extractConfluencePageId(url);
+        if (pageId) {
+          const fetched = await fetchConfluenceContextById({
+            pageId,
+            cloudId: session.cloudId,
+            accessToken: session.accessToken
+          });
+          sendJSON(res, 200, {
+            ok: true,
+            contextUrl: url,
+            contextText: fetched.extractedText,
+            contextSource: 'confluence_oauth',
+            contextSignals: fetched.signals || {}
+          });
+          return;
+        }
+      }
+
+      if (personal) {
+        const headers = buildPersonalConfluenceAuthHeaders(personal);
+        if (headers) {
+          const fetched = await fetchContextFromUrlWithHeaders(url, headers);
+          sendJSON(res, 200, {
+            ok: true,
+            contextUrl: fetched.contextUrl,
+            contextText: fetched.extractedText,
+            contextSource: 'confluence_personal',
+            contextSignals: fetched.signals
+          });
+          return;
+        }
+      }
+
+      // Fallback: direct URL fetch (works for publicly accessible pages or basic-auth configured server).
+      const fetched = await fetchContextFromUrl(url);
       sendJSON(res, 200, {
         ok: true,
-        contextUrl: context.contextUrl,
-        contextText: context.contextText,
-        contextSource: context.contextSource,
-        contextSignals: context.contextSignals
+        contextUrl: fetched.contextUrl,
+        contextText: fetched.extractedText,
+        contextSource: 'url',
+        contextSignals: fetched.signals
       });
     } catch (error) {
       sendJSON(res, 400, { error: 'Failed to fetch context', detail: error.message });
@@ -402,7 +625,28 @@ const server = http.createServer(async (req, res) => {
     try {
       const raw = await readBody(req);
       const body = JSON.parse(raw || '{}');
-      const items = await searchConfluenceDocuments(body.query || '');
+      const query = String(body.query || '').trim();
+      if (!query) {
+        sendJSON(res, 400, { error: 'query is required' });
+        return;
+      }
+
+      const session = await getSessionFromAuthorizationHeader(req.headers.authorization);
+      const personal = getPersonalConfluenceSessionFromAuthorizationHeader(req.headers.authorization);
+      const items = session
+        ? await searchConfluenceDocumentsWithSession({
+            query,
+            cloudId: session.cloudId,
+            accessToken: session.accessToken,
+            resourceUrl: session.resourceUrl
+          })
+        : personal
+          ? await searchConfluenceDocumentsWithHeaders({
+              query,
+              baseUrl: personal.confluenceBaseUrl,
+              headers: buildPersonalConfluenceAuthHeaders(personal) || {}
+            })
+          : await searchConfluenceDocuments(query);
       sendJSON(res, 200, { ok: true, items, count: items.length });
     } catch (error) {
       sendJSON(res, 400, { error: 'Failed to search Confluence', detail: error.message });

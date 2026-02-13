@@ -1,0 +1,1196 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DS Copilot Plugin</title>
+    <style>
+      :root {
+        --bg: #f5f8fc;
+        --panel: #ffffff;
+        --line: #d7e0ea;
+        --text: #1d2b3a;
+        --muted: #607387;
+        --brand: #1367d1;
+        --brand-soft: #e8f0ff;
+      }
+      * { box-sizing: border-box; }
+      body {
+        font-family: "Pretendard", "Noto Sans KR", sans-serif;
+        margin: 0;
+        padding: 10px;
+        color: var(--text);
+        background: var(--bg);
+      }
+      h1, h2, p { margin: 0; }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+      }
+      .sub { color: var(--muted); font-size: 12px; margin-top: 6px; }
+      .block {
+        margin-top: 10px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+      }
+      .block h2 { font-size: 12px; margin-bottom: 8px; }
+      label { display: block; margin: 8px 0 6px; font-size: 11px; color: var(--muted); }
+      textarea, input, select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px;
+        font: inherit;
+        background: #fff;
+      }
+      textarea { min-height: 72px; resize: vertical; }
+      button {
+        border: 0;
+        border-radius: 8px;
+        padding: 9px;
+        background: var(--brand);
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button.ghost {
+        background: #fff;
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+      .row2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+      }
+      .row3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+      }
+      .status-row {
+        margin-top: 8px;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .progress-wrap {
+        margin-top: 8px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        height: 8px;
+        overflow: hidden;
+        background: #eef3f9;
+      }
+      .progress-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #1367d1, #39a0ff);
+        transition: width 180ms ease;
+      }
+      .progress-text {
+        margin-top: 6px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .chip {
+        font-size: 10px;
+        padding: 3px 7px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--muted);
+      }
+      pre {
+        margin-top: 8px;
+        background: #091421;
+        color: #d5e4f3;
+        border-radius: 8px;
+        padding: 8px;
+        font-size: 10px;
+        max-height: 190px;
+        overflow: auto;
+      }
+      details summary { cursor: pointer; font-size: 12px; font-weight: 700; }
+      .help { margin-top: 8px; font-size: 10px; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <div class="panel">
+      <h1 style="font-size:14px;">DS 화면 생성 도우미</h1>
+      <p class="sub">요구사항만 입력하면 화면안과 상태안, 반영까지 한 번에 진행합니다.</p>
+      <div class="status-row">
+        <span class="chip" id="flowChip">진행: 대기</span>
+        <span class="chip" id="projectChip">프로젝트: 없음</span>
+        <span class="chip" id="boundsChip">선택영역: 미설정</span>
+      </div>
+      <div class="progress-wrap"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-text" id="progressText">진행률: 0%</div>
+    </div>
+
+    <div class="block">
+      <h2>1) 연결 설정</h2>
+      <label for="apiBase">연결 주소</label>
+      <input id="apiBase" value="http://localhost:4173" />
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:#1d2b3a;">
+        <input id="offlineMode" type="checkbox" style="width:auto;" />
+        서버 없이 사용 (오프라인)
+      </label>
+      <p class="help">오프라인에서는 기획 문서 URL 자동 불러오기는 안 되고, 아래 요약칸 붙여넣기로 생성됩니다.</p>
+    </div>
+
+    <div class="block">
+      <h2>2) 요구사항 입력</h2>
+      <label for="prompt">요청 내용</label>
+      <textarea id="prompt">예약 취소 팝업을 만들어줘. 사유 선택 후 상세 입력, 완료 시 토스트.</textarea>
+      <label for="contextUrl">기획 문서 URL (Confluence)</label>
+      <input id="contextUrl" placeholder="https://.../wiki/..." />
+      <label for="contextSearchQuery">컨플 문서 검색</label>
+      <input id="contextSearchQuery" placeholder="예: 예약 취소, 판매 캘린더" />
+      <div class="row2" style="margin-top:8px;">
+        <button class="ghost" id="searchContextBtn">컨플 문서 찾기</button>
+        <button class="ghost" id="pickContextResultBtn">선택 문서 링크 채우기</button>
+      </div>
+      <select id="contextSearchResults" style="margin-top:8px;">
+        <option value="">검색 결과 없음</option>
+      </select>
+      <label for="contextText">기획 문서 요약/핵심 요구</label>
+      <textarea id="contextText" placeholder="URL 불러오기를 누르면 자동 입력됩니다. 직접 붙여넣어도 됩니다."></textarea>
+      <div class="row2" style="margin-top:8px;">
+        <button class="ghost" id="loadContextUrlBtn">기획문서 불러오기</button>
+        <button class="ghost" id="readSelectionContextBtn">선택화면 맥락 읽기</button>
+      </div>
+      <label for="schemaUrl">데이터 문서 URL (선택)</label>
+      <input id="schemaUrl" placeholder="https://.../openapi.json" />
+      <label for="schema">데이터 예시/스키마</label>
+      <textarea id="schema">{"cancelReason":["고객요청","중복예약","기타"]}</textarea>
+      <div class="row3" style="margin-top:8px;">
+        <button class="ghost" id="loadSchemaUrlBtn">URL 불러오기</button>
+        <button class="ghost" id="sampleJsonBtn">JSON 샘플</button>
+        <button class="ghost" id="sampleSwaggerBtn">Swagger 샘플</button>
+        <button class="ghost" id="clearSchemaBtn">입력 비우기</button>
+      </div>
+      <label for="fidelity">화면 완성도</label>
+      <select id="fidelity">
+        <option value="lowfi">로우파이(구조 중심)</option>
+        <option value="prototype" selected>프로토타입(동작 중심)</option>
+        <option value="hifi">하이파이(상세 중심)</option>
+      </select>
+      <p class="help">단축키: Ctrl/Cmd + Enter = 화면안 생성</p>
+    </div>
+
+    <details class="block" open>
+      <summary>3) 프로젝트 설정</summary>
+      <label for="projectId">프로젝트 ID</label>
+      <input id="projectId" placeholder="project-id..." />
+      <div class="row2" style="margin-top:8px;">
+        <button class="ghost" id="loadProjectsBtn">프로젝트 목록</button>
+        <button class="ghost" id="loadProjectBtn">프로젝트 불러오기</button>
+      </div>
+      <label for="projectSelect">프로젝트 선택</label>
+      <select id="projectSelect"><option value="">(선택 안함)</option></select>
+      <label for="rankingPreset">추천 기준</label>
+      <select id="rankingPreset">
+        <option value="balanced" selected>균형형</option>
+        <option value="speed_first">속도 우선</option>
+        <option value="hifi_first">하이파이 우선</option>
+      </select>
+      <label for="rankingPolicyOverride">추천 기준 세부설정(JSON)</label>
+      <textarea id="rankingPolicyOverride">{}</textarea>
+      <button class="ghost" id="saveProjectConfigBtn" style="margin-top:8px;">프로젝트 설정 저장</button>
+      <label for="libraryUrls">라이브러리 URL 목록</label>
+      <textarea id="libraryUrls">https://www.figma.com/design/VBizF1Gd9PFF3qgqxlyL7e/PDS--Foundation-v1.7?m=auto
+https://www.figma.com/design/RNeufLEDgqnGPGBfYAcD0E/PDS--New-Component-v0.4?m=auto&t=NyRq3HARoyJhSkfi-6
+https://www.figma.com/design/Fwwye9jrFkhLK57DbiVEj9/PDS--Component-v.5.9.5?m=auto</textarea>
+      <div class="row3" style="margin-top:8px;">
+        <button class="ghost" id="libraryStatusBtn">라이브러리 상태</button>
+        <button class="ghost" id="libraryDrySyncBtn">일괄 학습 점검</button>
+        <button class="ghost" id="libraryApplySyncBtn">일괄 학습 적용</button>
+      </div>
+    </details>
+
+    <div class="block">
+      <h2>4) 생성/반영</h2>
+      <div class="row2">
+        <button id="prepareBtn">선택영역 읽기</button>
+        <button id="generateBtn">화면안 생성</button>
+      </div>
+      <div class="row2" style="margin-top:6px;">
+        <button id="generateTrioBtn">여러 안 생성</button>
+        <button id="oneClickBtn">한 번에 생성+반영</button>
+      </div>
+      <button id="confluenceOneClickBtn" style="margin-top:6px;">컨플 문서로 바로 생성+반영</button>
+      <label for="editInstruction">수정 요청(채팅식)</label>
+      <input id="editInstruction" placeholder="예: 에러 케이스 추가해줘 / 표를 카드형으로 바꿔줘" />
+      <div class="row2" style="margin-top:6px;">
+        <button id="applyEditBtn">선택화면 수정 반영</button>
+        <button class="ghost" id="clearEditBtn">수정요청 비우기</button>
+      </div>
+      <div class="row2" style="margin-top:6px;">
+        <button id="renderBtn">피그마에 반영</button>
+        <button id="renderTrioBtn">3안 모두 반영</button>
+      </div>
+      <div class="row2" style="margin-top:6px;">
+        <button class="ghost" id="copyResultBtn">응답 복사</button>
+        <button class="ghost" id="closeBtn">닫기</button>
+      </div>
+    </div>
+
+    <details class="block" open>
+      <summary>응답</summary>
+      <pre id="result">{}</pre>
+    </details>
+
+    <script>
+      const resultEl = document.getElementById('result');
+      const promptEl = document.getElementById('prompt');
+      const contextUrlEl = document.getElementById('contextUrl');
+      const contextSearchQueryEl = document.getElementById('contextSearchQuery');
+      const contextSearchResultsEl = document.getElementById('contextSearchResults');
+      const contextTextEl = document.getElementById('contextText');
+      const schemaUrlEl = document.getElementById('schemaUrl');
+      const schemaEl = document.getElementById('schema');
+      const editInstructionEl = document.getElementById('editInstruction');
+      const offlineModeEl = document.getElementById('offlineMode');
+      const fidelityEl = document.getElementById('fidelity');
+      const projectIdEl = document.getElementById('projectId');
+      const projectSelectEl = document.getElementById('projectSelect');
+      const rankingPresetEl = document.getElementById('rankingPreset');
+      const rankingPolicyOverrideEl = document.getElementById('rankingPolicyOverride');
+      const libraryUrlsEl = document.getElementById('libraryUrls');
+      const apiBaseEl = document.getElementById('apiBase');
+      const flowChipEl = document.getElementById('flowChip');
+      const projectChipEl = document.getElementById('projectChip');
+      const boundsChipEl = document.getElementById('boundsChip');
+      const progressFillEl = document.getElementById('progressFill');
+      const progressTextEl = document.getElementById('progressText');
+      const DRAFT_KEY = 'ds-copilot-figma-plugin-draft-v1';
+      let lastResponse = null;
+      let lastMatrix = null;
+      let selectedBounds = null;
+      let selectedContextText = '';
+      let proxySeq = 0;
+      const proxyWaiters = new Map();
+      let contextSearchItems = [];
+      let loadingTimer = null;
+      let loadingValue = 0;
+
+      const SAMPLE_JSON = `{
+  "rows": [
+    {"reservationId":"R-240211-001","partnerName":"강남점","status":"pending","cancelReason":"고객요청"},
+    {"reservationId":"R-240211-002","partnerName":"홍대점","status":"confirmed","cancelReason":"중복예약"}
+  ]
+}`;
+      const SAMPLE_SWAGGER = `{
+  "openapi":"3.0.0",
+  "paths":{"/api/partners/reservations":{"get":{"responses":{"200":{"description":"OK"}}}}},
+  "components":{"schemas":{"Reservation":{"type":"object","properties":{
+    "reservationId":{"type":"string"},
+    "partnerName":{"type":"string"},
+    "status":{"type":"string","enum":["pending","confirmed","canceled"]},
+    "cancelReason":{"type":"string","enum":["고객요청","중복예약","기타"]}
+  }}}}
+}`;
+
+      function setFlow(text) {
+        flowChipEl.textContent = `진행: ${text}`;
+        projectChipEl.textContent = `프로젝트: ${projectIdEl.value || '없음'}`;
+        if (selectedBounds) {
+          boundsChipEl.textContent = `선택영역: ${Math.round(selectedBounds.width)}x${Math.round(selectedBounds.height)}`;
+        } else {
+          boundsChipEl.textContent = '선택영역: 미설정';
+        }
+      }
+
+      function setProgress(value) {
+        const safe = Math.max(0, Math.min(100, Math.round(Number(value || 0))));
+        progressFillEl.style.width = `${safe}%`;
+        progressTextEl.textContent = `진행률: ${safe}%`;
+      }
+
+      function startLoading(flowLabel = '처리중') {
+        if (loadingTimer) clearInterval(loadingTimer);
+        loadingValue = 6;
+        setFlow(flowLabel);
+        setProgress(loadingValue);
+        loadingTimer = setInterval(() => {
+          if (loadingValue < 90) {
+            loadingValue += loadingValue < 40 ? 8 : loadingValue < 70 ? 5 : 2;
+            setProgress(loadingValue);
+          }
+        }, 220);
+      }
+
+      function stopLoading(doneLabel = '완료') {
+        if (loadingTimer) {
+          clearInterval(loadingTimer);
+          loadingTimer = null;
+        }
+        loadingValue = 100;
+        setProgress(loadingValue);
+        setFlow(doneLabel);
+        setTimeout(() => {
+          loadingValue = 0;
+          setProgress(loadingValue);
+        }, 650);
+      }
+
+      function failLoading(errorLabel = '오류') {
+        if (loadingTimer) {
+          clearInterval(loadingTimer);
+          loadingTimer = null;
+        }
+        loadingValue = 0;
+        setProgress(loadingValue);
+        setFlow(errorLabel);
+      }
+
+      function saveDraft() {
+        const payload = {
+          apiBase: apiBaseEl.value,
+          offlineMode: offlineModeEl.checked,
+          prompt: promptEl.value,
+          contextUrl: contextUrlEl.value,
+          contextSearchQuery: contextSearchQueryEl.value,
+          contextText: contextTextEl.value,
+          schemaUrl: schemaUrlEl.value,
+          schema: schemaEl.value,
+          editInstruction: editInstructionEl.value,
+          fidelity: fidelityEl.value,
+          projectId: projectIdEl.value,
+          rankingPreset: rankingPresetEl.value,
+          rankingPolicyOverride: rankingPolicyOverrideEl.value,
+          libraryUrls: libraryUrlsEl.value
+        };
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+      }
+
+      function loadDraft() {
+        try {
+          const raw = localStorage.getItem(DRAFT_KEY);
+          if (!raw) return;
+          const draft = JSON.parse(raw);
+          if (typeof draft.apiBase === 'string') apiBaseEl.value = draft.apiBase;
+          if (typeof draft.offlineMode === 'boolean') offlineModeEl.checked = draft.offlineMode;
+          if (typeof draft.prompt === 'string') promptEl.value = draft.prompt;
+          if (typeof draft.contextUrl === 'string') contextUrlEl.value = draft.contextUrl;
+          if (typeof draft.contextSearchQuery === 'string') contextSearchQueryEl.value = draft.contextSearchQuery;
+          if (typeof draft.contextText === 'string') contextTextEl.value = draft.contextText;
+          if (typeof draft.schemaUrl === 'string') schemaUrlEl.value = draft.schemaUrl;
+          if (typeof draft.schema === 'string') schemaEl.value = draft.schema;
+          if (typeof draft.editInstruction === 'string') editInstructionEl.value = draft.editInstruction;
+          if (typeof draft.fidelity === 'string') fidelityEl.value = draft.fidelity;
+          if (typeof draft.projectId === 'string') projectIdEl.value = draft.projectId;
+          if (typeof draft.rankingPreset === 'string') rankingPresetEl.value = draft.rankingPreset;
+          if (typeof draft.rankingPolicyOverride === 'string') rankingPolicyOverrideEl.value = draft.rankingPolicyOverride;
+          if (typeof draft.libraryUrls === 'string') libraryUrlsEl.value = draft.libraryUrls;
+        } catch (e) {
+          // ignore bad draft
+        }
+      }
+
+      function parseOverride() {
+        try {
+          return JSON.parse(rankingPolicyOverrideEl.value || '{}');
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function parseLibraryUrls() {
+        return String(libraryUrlsEl.value || '')
+          .split('\n')
+          .map((v) => v.trim())
+          .filter(Boolean);
+      }
+
+      function buildGenerationInput(extra = {}) {
+        return {
+          prompt: promptEl.value,
+          contextUrl: contextUrlEl.value.trim(),
+          contextText: contextTextEl.value,
+          selectionContext: selectedContextText,
+          editInstruction: editInstructionEl.value.trim(),
+          dataSchemaUrl: schemaUrlEl.value,
+          dataSchema: schemaEl.value,
+          fidelity: fidelityEl.value,
+          selection: selectedBounds,
+          ...extra
+        };
+      }
+
+      async function apiRequest(url, options = {}) {
+        if (offlineModeEl.checked) {
+          throw new Error('오프라인 모드입니다. 서버 호출 기능은 사용할 수 없습니다.');
+        }
+        const requestId = `req_${Date.now()}_${++proxySeq}`;
+        const payload = {
+          type: 'proxy-fetch',
+          requestId,
+          url,
+          method: options.method || 'GET',
+          headers: options.headers || {},
+          body: options.body
+        };
+        return await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            proxyWaiters.delete(requestId);
+            reject(new Error('서버 응답 대기시간이 초과되었습니다.'));
+          }, 30000);
+          proxyWaiters.set(requestId, { resolve, reject, timeout });
+          parent.postMessage({ pluginMessage: payload }, '*');
+        });
+      }
+
+      function localBuildPlan({ prompt, schemaText, contextText, editInstruction, fidelity }) {
+        const text = [prompt, contextText, editInstruction].join('\n').toLowerCase();
+        const isCancel = /취소|cancel/.test(text);
+        const isList = /리스트|목록|table|표/.test(text);
+        const wantsCard = /카드|card/.test(text);
+        const hasError = /에러|error|예외|실패/.test(text);
+        const title = isCancel ? '예약 취소 팝업' : isList ? '예약 리스트 화면' : '파트너센터 신규 화면';
+
+        let components = [];
+        if (isCancel) {
+          components = ['YEO_Modal', 'YEO_Dropdown', 'YEO_TextArea', 'YEO_Button', 'YEO_Toast'];
+        } else if (isList) {
+          components = ['YEO_Table', 'YEO_Dropdown', 'YEO_Button', 'YEO_Badge'];
+        } else {
+          components = ['YEO_Input', 'YEO_Button', 'YEO_Table'];
+        }
+        if (hasError && !components.includes('YEO_Toast')) components.push('YEO_Toast');
+        if (wantsCard && !components.includes('YEO_Badge')) components.push('YEO_Badge');
+        if (fidelity === 'lowfi') {
+          components = components.filter((c) => !['YEO_TextArea', 'YEO_Toast', 'YEO_Badge'].includes(c));
+        }
+        if (fidelity === 'hifi' && !components.includes('YEO_Badge')) {
+          components.push('YEO_Badge');
+        }
+
+        const proposed = wantsCard ? [{ name: 'YEO_Card', reason: '카드형 요청 감지, DS 신규 제안', status: 'Proposed' }] : [];
+        const deduped = Array.from(new Set(components));
+        const body = deduped.filter((c) => c !== 'YEO_Modal' && c !== 'YEO_Button');
+        const header = deduped.includes('YEO_Modal') ? ['YEO_Modal'] : [];
+        const footer = deduped.includes('YEO_Button') ? ['YEO_Button'] : [];
+        const filterBar = deduped.includes('YEO_Table') ? deduped.filter((c) => ['YEO_Input', 'YEO_Dropdown', 'YEO_Button'].includes(c)) : [];
+
+        return {
+          title,
+          fidelity,
+          previewDensity: fidelity === 'lowfi' ? 'coarse' : fidelity === 'hifi' ? 'detailed' : 'balanced',
+          components: deduped,
+          sections: { header, body, footer, filterBar },
+          states: ['normal', 'empty', 'loading', 'error', 'skeleton'],
+          reasoning: ['오프라인 모드에서 입력 문장을 기준으로 DS 컴포넌트를 조합했습니다.'],
+          businessRules: [
+            '필수 입력 완료 시 주요 버튼이 활성화됩니다.',
+            '오류 발생 시 에러 상태/피드백을 노출합니다.'
+          ],
+          routeMap: [
+            { action: '완료 클릭', to: '다음 화면', guard: 'validation_passed' },
+            { action: '닫기 클릭', to: '현재 화면', guard: 'always' }
+          ],
+          dataContext: { sourceType: schemaText ? 'inline_schema' : 'none', endpoint: '/local/mock' },
+          contextSummary: { confluence: null, selectionContext: selectedContextText ? 'included' : 'none', editInstruction: editInstruction || '', signals: {} },
+          proposed,
+          componentProps: {}
+        };
+      }
+
+      async function loadProjects() {
+        const response = await apiRequest(`${apiBaseEl.value}/api/projects`);
+        const data = response.data || {};
+        if (!response.ok) throw new Error(data.error || '프로젝트 목록 조회 실패');
+        const items = Array.isArray(data.items) ? data.items : [];
+        projectSelectEl.innerHTML = `<option value="">(선택 안함)</option>` + items
+          .map((item) => `<option value="${item.id}">${item.name} (${item.id})</option>`)
+          .join('');
+        return items;
+      }
+
+      async function loadProjectDetail(projectId) {
+        if (!projectId) throw new Error('Project ID가 필요합니다.');
+        const response = await apiRequest(`${apiBaseEl.value}/api/projects/${encodeURIComponent(projectId)}`);
+        const data = response.data || {};
+        if (!response.ok) throw new Error(data.error || '프로젝트 조회 실패');
+        const project = data.project || {};
+        projectIdEl.value = project.id || projectId;
+        projectSelectEl.value = project.id || '';
+        if (project.rankingPreset) rankingPresetEl.value = project.rankingPreset;
+        rankingPolicyOverrideEl.value = JSON.stringify(project.rankingPolicyOverride || {}, null, 2);
+        if (typeof project.dataSchemaUrl === 'string') schemaUrlEl.value = project.dataSchemaUrl;
+        if (typeof project.dataSchema === 'string' && project.dataSchema.trim().length > 0) schemaEl.value = project.dataSchema;
+        saveDraft();
+        return project;
+      }
+
+      function buildPayload(source) {
+        return {
+          title: source.plan.title,
+          states: source.plan.states,
+          components: source.plan.components,
+          sections: source.plan.sections || {},
+          fidelity: source.plan.fidelity || fidelityEl.value || 'prototype',
+          previewDensity: source.plan.previewDensity || 'balanced',
+          reasoning: source.plan.reasoning || [],
+          compliance: source.compliance || null,
+          componentProps: source.plan.componentProps || {},
+          businessRules: source.plan.businessRules,
+          routeMap: source.plan.routeMap,
+          proposed: source.plan.proposed || [],
+          contextSummary: source.plan.contextSummary || {},
+          componentKeys: source.componentKeys || {},
+          componentLayouts: source.componentLayouts || {},
+          layoutStrategy: source.layoutStrategy || {},
+          patternStrategy: source.patternStrategy || {},
+          bounds: selectedBounds,
+          autoPrototype: true
+        };
+      }
+
+      function buildPayloadFromMatrixItem(item, index) {
+        const spacingX = 80;
+        const baseBounds = selectedBounds || { x: 80, y: 80, width: 960, height: 640 };
+        const frameWidth = baseBounds.width || 960;
+        const offsetX = baseBounds.x + index * (frameWidth + spacingX);
+        return {
+          title: `${item.plan.title} #${item.rank?.order || index + 1}`,
+          states: item.plan.states,
+          components: item.plan.components,
+          sections: item.plan.sections || {},
+          fidelity: item.plan.fidelity || item.fidelity || 'prototype',
+          previewDensity: item.plan.previewDensity || 'balanced',
+          reasoning: item.plan.reasoning || [],
+          compliance: item.compliance || null,
+          componentProps: item.plan.componentProps || {},
+          businessRules: item.plan.businessRules,
+          routeMap: item.plan.routeMap,
+          proposed: item.plan.proposed || [],
+          contextSummary: item.plan.contextSummary || {},
+          componentKeys: lastMatrix.componentKeys || {},
+          componentLayouts: lastMatrix.componentLayouts || {},
+          layoutStrategy: lastMatrix.layoutStrategy || {},
+          patternStrategy: lastMatrix.patternStrategy || {},
+          bounds: { ...baseBounds, x: offsetX },
+          autoPrototype: true
+        };
+      }
+
+      function syncFromMatrixByFidelity() {
+        if (!lastMatrix?.matrix?.length) return;
+        const picked = lastMatrix.matrix.find((item) => item.fidelity === fidelityEl.value) || lastMatrix.matrix[0];
+        if (!picked) return;
+        lastResponse = {
+          plan: picked.plan,
+          ir: picked.ir,
+          validation: picked.validation,
+          compliance: picked.compliance,
+          componentKeys: lastMatrix.componentKeys || {},
+          componentLayouts: lastMatrix.componentLayouts || {},
+          layoutStrategy: lastMatrix.layoutStrategy || {},
+          patternStrategy: lastMatrix.patternStrategy || {}
+        };
+      }
+
+      async function doGenerate() {
+        startLoading('화면 생성중');
+        if (offlineModeEl.checked) {
+          const input = buildGenerationInput();
+          const plan = localBuildPlan({
+            prompt: input.prompt,
+            schemaText: input.dataSchema,
+            contextText: input.contextText,
+            editInstruction: input.editInstruction,
+            fidelity: input.fidelity
+          });
+          const data = {
+            inputSummary: { prompt: input.prompt, offline: true, fidelity: input.fidelity },
+            plan,
+            validation: [],
+            compliance: { blocked: false, stage: 'generation', counts: {} },
+            componentKeys: {},
+            componentLayouts: {},
+            layoutStrategy: {},
+            patternStrategy: {}
+          };
+          lastResponse = data;
+          lastMatrix = null;
+          resultEl.textContent = JSON.stringify(data, null, 2);
+          stopLoading('생성 완료(오프라인)');
+          return data;
+        }
+        const response = await apiRequest(`${apiBaseEl.value}/api/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildGenerationInput())
+        });
+        const data = response.data || {};
+        if (!response.ok) throw new Error(data.error || data.detail || '생성 실패');
+        lastResponse = data;
+        lastMatrix = null;
+        resultEl.textContent = JSON.stringify(data, null, 2);
+        stopLoading('생성 완료');
+        return data;
+      }
+
+      async function doGenerateTrio() {
+        startLoading('여러 안 생성중');
+        if (offlineModeEl.checked) {
+          const input = buildGenerationInput();
+          const variants = ['lowfi', 'prototype', 'hifi', 'prototype'];
+          const matrix = variants.map((f, i) => {
+            const plan = localBuildPlan({
+              prompt: input.prompt,
+              schemaText: input.dataSchema,
+              contextText: input.contextText,
+              editInstruction: i === 3 ? `${input.editInstruction}\n대안안: 액션 우선 배치` : input.editInstruction,
+              fidelity: f
+            });
+            if (i === 3) plan.title = `${plan.title} (대안)`;
+            return {
+              fidelity: f,
+              variantId: i === 3 ? 'prototype_alt' : f,
+              plan,
+              validation: [],
+              compliance: { blocked: false, stage: 'generation', counts: {} },
+              rank: { order: i + 1, score: 90 - i * 3, breakdown: { policy: { mode: 'offline' } } }
+            };
+          });
+          lastMatrix = { matrix, recommendation: { fidelity: 'prototype', reason: '오프라인 기본 추천' } };
+          fidelityEl.value = 'prototype';
+          syncFromMatrixByFidelity();
+          resultEl.textContent = JSON.stringify({
+            selectedFidelity: fidelityEl.value,
+            recommendation: lastMatrix.recommendation,
+            matrix: matrix.map((item) => ({
+              variantId: item.variantId,
+              fidelity: item.fidelity,
+              title: item.plan.title,
+              rankOrder: item.rank.order,
+              score: item.rank.score,
+              components: item.plan.components,
+              proposedCount: item.plan.proposed?.length || 0,
+              blocked: false
+            }))
+          }, null, 2);
+          stopLoading('여러 안 준비 완료(오프라인)');
+          return lastMatrix;
+        }
+        const projectId = projectIdEl.value.trim();
+        const endpoint = projectId
+          ? `${apiBaseEl.value}/api/projects/${encodeURIComponent(projectId)}/generate-matrix`
+          : `${apiBaseEl.value}/api/generate-matrix`;
+        const override = parseOverride();
+        if (override === null) throw new Error('Ranking Policy Override JSON이 유효하지 않습니다.');
+        const response = await apiRequest(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(
+            buildGenerationInput({
+              rankingPreset: rankingPresetEl.value || 'balanced',
+              rankingPolicyOverride: override,
+              projectId: projectId || undefined
+            })
+          )
+        });
+        const data = response.data || {};
+        if (!response.ok) throw new Error(data.error || '3안 생성 실패');
+        lastMatrix = data;
+        if (data.recommendation?.fidelity) fidelityEl.value = data.recommendation.fidelity;
+        syncFromMatrixByFidelity();
+        resultEl.textContent = JSON.stringify(
+          {
+            selectedFidelity: fidelityEl.value,
+            recommendation: data.recommendation || null,
+            matrix: (data.matrix || []).map((item) => ({
+              variantId: item.variantId || item.fidelity,
+              fidelity: item.fidelity,
+              title: item.plan?.title,
+              rankOrder: item.rank?.order || null,
+              score: item.rank?.score || null,
+              policy: item.rank?.breakdown?.policy || null,
+              components: item.plan?.components || [],
+              proposedCount: Array.isArray(item.plan?.proposed) ? item.plan.proposed.length : 0,
+              blocked: item.compliance?.blocked || false
+            }))
+          },
+          null,
+          2
+        );
+        stopLoading('여러 안 준비 완료');
+        return data;
+      }
+
+      async function doRenderSingle() {
+        if (lastMatrix?.matrix?.length) syncFromMatrixByFidelity();
+        if (!lastResponse?.plan) throw new Error('먼저 생성 요청을 실행하세요.');
+        const payload = buildPayload(lastResponse);
+        parent.postMessage({ pluginMessage: { type: 'create-generated-frame', payload } }, '*');
+        try {
+          await apiRequest(`${apiBaseEl.value}/api/figma/events/onAssetValidation`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              planTitle: payload.title,
+              componentCount: payload.components.length,
+              states: payload.states
+            })
+          });
+        } catch (e) {
+          // ignore
+        }
+        setFlow('rendered');
+      }
+
+      async function doRenderTrio() {
+        if (!lastMatrix?.matrix?.length) throw new Error('먼저 3안 생성을 실행하세요.');
+        const payloads = lastMatrix.matrix.map((item, index) => buildPayloadFromMatrixItem(item, index));
+        parent.postMessage({ pluginMessage: { type: 'create-generated-matrix', payloads } }, '*');
+        setFlow('trio rendered');
+      }
+
+      document.getElementById('prepareBtn').onclick = () => {
+        parent.postMessage({ pluginMessage: { type: 'generate-request' } }, '*');
+        parent.postMessage({ pluginMessage: { type: 'selection-context-request' } }, '*');
+        setFlow('reading bounds');
+      };
+
+      document.getElementById('generateBtn').onclick = async () => {
+        try {
+          await doGenerate();
+          await apiRequest(`${apiBaseEl.value}/api/figma/events/onDesignRequest`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              selection: selectedBounds,
+              prompt: promptEl.value,
+              planTitle: lastResponse?.plan?.title || ''
+            })
+          });
+        } catch (error) {
+          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+          failLoading('generate error');
+        }
+      };
+
+      document.getElementById('generateTrioBtn').onclick = async () => {
+        try {
+          await doGenerateTrio();
+        } catch (error) {
+          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+          failLoading('trio error');
+        }
+      };
+
+      document.getElementById('oneClickBtn').onclick = async () => {
+        try {
+          await doGenerate();
+          await doRenderSingle();
+        } catch (error) {
+          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+          failLoading('one-click error');
+        }
+      };
+
+      document.getElementById('confluenceOneClickBtn').onclick = async () => {
+        try {
+          await confluenceOneClick();
+        } catch (error) {
+          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+          failLoading('confluence one-click error');
+        }
+      };
+
+      document.getElementById('loadProjectsBtn').onclick = async () => {
+        try {
+          const items = await loadProjects();
+          resultEl.textContent = JSON.stringify({ action: 'load_projects', count: items.length, items }, null, 2);
+          setFlow('projects loaded');
+        } catch (error) {
+          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+          setFlow('projects error');
+        }
+      };
+
+      document.getElementById('loadProjectBtn').onclick = async () => {
+        try {
+          const selected = projectIdEl.value.trim() || projectSelectEl.value;
+          const project = await loadProjectDetail(selected);
+          resultEl.textContent = JSON.stringify({ action: 'load_project', project }, null, 2);
+          setFlow('project loaded');
+        } catch (error) {
+          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+          setFlow('project error');
+        }
+      };
+
+      document.getElementById('saveProjectConfigBtn').onclick = async () => {
+        try {
+          const projectId = projectIdEl.value.trim();
+          if (!projectId) throw new Error('Project ID가 필요합니다.');
+          const override = parseOverride();
+          if (override === null) throw new Error('Ranking Policy Override JSON이 유효하지 않습니다.');
+          const response = await apiRequest(`${apiBaseEl.value}/api/projects/${encodeURIComponent(projectId)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              rankingPreset: rankingPresetEl.value || 'balanced',
+              rankingPolicyOverride: override,
+              dataSchemaUrl: schemaUrlEl.value,
+              dataSchema: schemaEl.value
+            })
+          });
+          const data = response.data || {};
+          if (!response.ok) throw new Error(data.error || '프로젝트 설정 저장 실패');
+          resultEl.textContent = JSON.stringify(
+            {
+              action: 'project_config_save',
+              projectId,
+              rankingPreset: data.project?.rankingPreset,
+              rankingPolicyOverride: data.project?.rankingPolicyOverride || {}
+            },
+            null,
+            2
+          );
+          setFlow('project config saved');
+        } catch (error) {
+          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+          setFlow('project config error');
+        }
+      };
+
+      async function loadLibraryStatus() {
+        startLoading('라이브러리 상태 확인중');
+        const response = await apiRequest(`${apiBaseEl.value}/api/figma/library/status`);
+        const data = response.data || {};
+        if (!response.ok) throw new Error(data.error || '라이브러리 상태 조회 실패');
+        resultEl.textContent = JSON.stringify(data, null, 2);
+        stopLoading('라이브러리 상태 완료');
+      }
+
+      async function runLibrarySync(dryRun) {
+        startLoading(dryRun ? '학습 점검중' : '학습 적용중');
+        const libraryUrls = parseLibraryUrls();
+        if (libraryUrls.length === 0) throw new Error('라이브러리 URL을 1개 이상 입력하세요.');
+        const response = await apiRequest(`${apiBaseEl.value}/api/figma/library/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dryRun,
+            libraryUrls
+          })
+        });
+        const data = response.data || {};
+        if (!response.ok) throw new Error(data.error || '라이브러리 동기화 실패');
+        resultEl.textContent = JSON.stringify(data, null, 2);
+        stopLoading(dryRun ? '학습 점검 완료' : '학습 적용 완료');
+      }
+
+      async function loadContextUrl() {
+        startLoading('기획문서 불러오는 중');
+        if (offlineModeEl.checked) {
+          throw new Error('오프라인 모드에서는 URL 자동 불러오기가 안 됩니다. 아래 "기획 문서 요약/핵심 요구" 칸에 복붙해주세요.');
+        }
+        if (!contextUrlEl.value.trim()) throw new Error('기획 문서 URL을 입력하세요.');
+        const response = await apiRequest(`${apiBaseEl.value}/api/context/fetch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contextUrl: contextUrlEl.value.trim() })
+        });
+        const data = response.data || {};
+        if (!response.ok) {
+          const detail = data.detail || data.error || '기획 문서 불러오기 실패';
+          throw new Error(
+            `기획문서 불러오기 실패: ${detail}\n` +
+            '확인: 1) URL이 실제 페이지인지 2) 서버 권한(토큰) 설정 3) DS_ALLOWED_CONTEXT_HOSTS 도메인 허용'
+          );
+        }
+        contextTextEl.value = data.contextText || '';
+        saveDraft();
+        resultEl.textContent = JSON.stringify(data, null, 2);
+        stopLoading('기획문서 불러오기 완료');
+      }
+
+      function renderContextSearchResults(items = []) {
+        contextSearchItems = Array.isArray(items) ? items : [];
+        if (contextSearchItems.length === 0) {
+          contextSearchResultsEl.innerHTML = '<option value="">검색 결과 없음</option>';
+          return;
+        }
+        contextSearchResultsEl.innerHTML = contextSearchItems
+          .map((item, index) => {
+            const label = `${item.title || '(제목 없음)'}${item.space ? ` [${item.space}]` : ''}`;
+            return `<option value="${index}">${label}</option>`;
+          })
+          .join('');
+      }
+
+      async function searchContextDocuments() {
+        if (offlineModeEl.checked) {
+          throw new Error('오프라인 모드에서는 컨플 문서 검색이 안 됩니다.');
+        }
+        const query = contextSearchQueryEl.value.trim();
+        if (!query) throw new Error('검색어를 입력하세요.');
+        startLoading('컨플 문서 검색중');
+        const response = await apiRequest(`${apiBaseEl.value}/api/context/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
+        });
+        const data = response.data || {};
+        if (!response.ok) throw new Error(data.error || data.detail || '컨플 문서 검색 실패');
+        renderContextSearchResults(data.items || []);
+        resultEl.textContent = JSON.stringify(data, null, 2);
+        stopLoading(`문서 ${Number(data.count || 0)}건 찾음`);
+      }
+
+      function pickContextResult() {
+        const idx = Number(contextSearchResultsEl.value);
+        const item = contextSearchItems[idx];
+        if (!item || !item.url) throw new Error('선택한 문서의 URL이 없습니다.');
+        contextUrlEl.value = item.url;
+        saveDraft();
+        setFlow('문서 링크 채움');
+      }
+
+      async function confluenceOneClick() {
+        if (offlineModeEl.checked) {
+          throw new Error('컨플 자동 연동은 오프라인 모드에서 사용할 수 없습니다.');
+        }
+        startLoading('컨플 문서 기반 생성중');
+
+        if (!contextUrlEl.value.trim()) {
+          const query = contextSearchQueryEl.value.trim() || promptEl.value.trim();
+          if (!query) throw new Error('검색어 또는 요청 내용을 입력하세요.');
+
+          const searchResponse = await apiRequest(`${apiBaseEl.value}/api/context/search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query })
+          });
+          const searchData = searchResponse.data || {};
+          if (!searchResponse.ok) throw new Error(searchData.error || searchData.detail || '컨플 문서 검색 실패');
+          renderContextSearchResults(searchData.items || []);
+
+          const first = contextSearchItems[0];
+          if (!first || !first.url) throw new Error('검색 결과에서 문서를 찾지 못했습니다.');
+          contextUrlEl.value = first.url;
+        }
+
+        await loadContextUrl();
+        await doGenerate();
+        await doRenderSingle();
+        stopLoading('컨플 기반 생성 완료');
+      }
+
+      function requestSelectionContext() {
+        parent.postMessage({ pluginMessage: { type: 'selection-context-request' } }, '*');
+        setFlow('selection context');
+      }
+
+      document.getElementById('libraryStatusBtn').onclick = async () => {
+        try {
+          await loadLibraryStatus();
+        } catch (error) {
+          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+          failLoading('library status error');
+        }
+      };
+
+      document.getElementById('libraryDrySyncBtn').onclick = async () => {
+        try {
+          await runLibrarySync(true);
+        } catch (error) {
+          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+          failLoading('library dry-run error');
+        }
+      };
+
+      document.getElementById('libraryApplySyncBtn').onclick = async () => {
+        try {
+          await runLibrarySync(false);
+        } catch (error) {
+          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+          failLoading('library apply error');
+        }
+      };
+
+      document.getElementById('loadContextUrlBtn').onclick = async () => {
+        try {
+          await loadContextUrl();
+        } catch (error) {
+          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+          failLoading('context error');
+        }
+      };
+
+      document.getElementById('searchContextBtn').onclick = async () => {
+        try {
+          await searchContextDocuments();
+        } catch (error) {
+          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+          failLoading('context search error');
+        }
+      };
+
+      document.getElementById('pickContextResultBtn').onclick = () => {
+        try {
+          pickContextResult();
+        } catch (error) {
+          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+          setFlow('context pick error');
+        }
+      };
+
+      document.getElementById('readSelectionContextBtn').onclick = () => {
+        requestSelectionContext();
+      };
+
+      document.getElementById('renderBtn').onclick = async () => {
+        try {
+          await doRenderSingle();
+        } catch (error) {
+          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+          setFlow('render error');
+        }
+      };
+
+      document.getElementById('renderTrioBtn').onclick = async () => {
+        try {
+          await doRenderTrio();
+        } catch (error) {
+          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+          setFlow('trio render error');
+        }
+      };
+
+      document.getElementById('copyResultBtn').onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(resultEl.textContent || '');
+          setFlow('result copied');
+        } catch (e) {
+          setFlow('copy failed');
+        }
+      };
+
+      document.getElementById('closeBtn').onclick = () => {
+        parent.postMessage({ pluginMessage: { type: 'close' } }, '*');
+      };
+
+      document.getElementById('sampleJsonBtn').onclick = () => {
+        schemaEl.value = SAMPLE_JSON;
+        saveDraft();
+        setFlow('sample json');
+      };
+      document.getElementById('loadSchemaUrlBtn').onclick = async () => {
+        try {
+          if (!schemaUrlEl.value.trim()) throw new Error('schema URL을 입력하세요.');
+          const response = await apiRequest(`${apiBaseEl.value}/api/data-schema/fetch`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: schemaUrlEl.value.trim() })
+          });
+          const data = response.data || {};
+          if (!response.ok) throw new Error(data.error || data.detail || 'schema fetch failed');
+          schemaEl.value = data.dataSchema || '';
+          saveDraft();
+          setFlow('schema url loaded');
+        } catch (error) {
+          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+          setFlow('schema url error');
+        }
+      };
+      document.getElementById('sampleSwaggerBtn').onclick = () => {
+        schemaEl.value = SAMPLE_SWAGGER;
+        saveDraft();
+        setFlow('sample swagger');
+      };
+      document.getElementById('clearSchemaBtn').onclick = () => {
+        schemaEl.value = '';
+        saveDraft();
+        setFlow('schema cleared');
+      };
+
+      document.getElementById('applyEditBtn').onclick = async () => {
+        try {
+          if (!editInstructionEl.value.trim()) throw new Error('수정 요청을 입력하세요.');
+          await doGenerate();
+          await doRenderSingle();
+          setFlow('edit applied');
+        } catch (error) {
+          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+          failLoading('edit error');
+        }
+      };
+
+      document.getElementById('clearEditBtn').onclick = () => {
+        editInstructionEl.value = '';
+        saveDraft();
+        setFlow('edit cleared');
+      };
+
+      fidelityEl.onchange = () => {
+        if (lastMatrix?.matrix?.length) syncFromMatrixByFidelity();
+        saveDraft();
+      };
+
+      projectSelectEl.onchange = () => {
+        if (projectSelectEl.value) projectIdEl.value = projectSelectEl.value;
+        saveDraft();
+      };
+
+      [apiBaseEl, offlineModeEl, promptEl, contextUrlEl, contextSearchQueryEl, contextTextEl, schemaUrlEl, schemaEl, editInstructionEl, projectIdEl, rankingPresetEl, rankingPolicyOverrideEl, libraryUrlsEl].forEach((el) => {
+        el.addEventListener('input', saveDraft);
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+          event.preventDefault();
+          document.getElementById('generateBtn').click();
+        }
+      });
+
+      window.onmessage = (event) => {
+        const msg = event.data.pluginMessage;
+        if (!msg) return;
+        if (msg.type === 'proxy-fetch-result') {
+          const waiter = proxyWaiters.get(msg.requestId);
+          if (!waiter) return;
+          clearTimeout(waiter.timeout);
+          proxyWaiters.delete(msg.requestId);
+          if (msg.ok) {
+            waiter.resolve({ ok: true, status: msg.status, data: msg.data || {} });
+          } else {
+            if (msg.status > 0) {
+              waiter.resolve({ ok: false, status: msg.status, data: msg.data || {} });
+            } else {
+              waiter.reject(new Error(msg.error || '서버 연결 실패'));
+            }
+          }
+          return;
+        }
+        if (msg.type === 'selected-bounds') {
+          selectedBounds = msg.bounds;
+          if (typeof msg.selectionContext === 'string') {
+            selectedContextText = msg.selectionContext;
+          }
+          resultEl.textContent = JSON.stringify({ selectedBounds, selectionContext: selectedContextText }, null, 2);
+          setFlow('bounds ready');
+          return;
+        }
+        if (msg.type === 'selected-context') {
+          selectedContextText = msg.selectionContext || '';
+          resultEl.textContent = JSON.stringify({ selectionContext: selectedContextText }, null, 2);
+          setFlow('selection context ready');
+        }
+      };
+
+      loadDraft();
+      setFlow('대기');
+    </script>
+  </body>
+</html>

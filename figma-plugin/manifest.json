@@ -4,9 +4,13 @@
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
-  "editorType": ["figma"],
+  "editorType": [
+    "figma"
+  ],
   "networkAccess": {
-    "allowedDomains": ["*"],
-    "reasoning": "Development build: plugin needs network access to local DS Copilot API and schema URLs."
+    "allowedDomains": [
+      "https://ds-copilot-demo.onrender.com"
+    ],
+    "reasoning": "Team deployment: plugin calls shared DS Copilot API endpoint."
   }
 }

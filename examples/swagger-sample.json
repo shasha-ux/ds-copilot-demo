@@ -1,0 +1,33 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/partners/reservations": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Reservation": {
+        "type": "object",
+        "properties": {
+          "reservationId": { "type": "string" },
+          "partnerName": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "confirmed", "canceled"]
+          },
+          "cancelReason": {
+            "type": "string",
+            "enum": ["고객요청", "중복예약", "기타"]
+          }
+        }
+      }
+    }
+  }
+}

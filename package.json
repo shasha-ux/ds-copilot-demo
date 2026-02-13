@@ -18,6 +18,7 @@
     "verify:full": "npm run extract:stories && npm run verify && npm run smoke",
     "extract:registry": "node scripts/extract-registry.mjs",
     "extract:stories": "node scripts/extract-registry-from-stories.mjs",
-    "plugin:configure-api": "node scripts/configure-plugin-api-base.mjs"
+    "plugin:configure-api": "node scripts/configure-plugin-api-base.mjs",
+    "github:publish": "node scripts/publish-github-contents.mjs"
   }
 }

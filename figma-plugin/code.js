@@ -556,6 +556,17 @@ function wireFramesAsPrototype(frames) {
 }
 
 figma.ui.onmessage = async (msg) => {
+  if (msg.type === 'open-external') {
+    const url = String(msg.url || '').trim();
+    if (url) {
+      try {
+        figma.openExternal(url);
+      } catch (e) {
+        figma.notify('외부 브라우저 열기 실패: URL을 직접 열어주세요.');
+      }
+    }
+  }
+
   if (msg.type === 'proxy-fetch') {
     const requestId = String(msg.requestId || '');
     try {

@@ -132,40 +132,53 @@
       <div class="progress-text" id="progressText">진행률: 0%</div>
     </div>
 
-    <div class="block">
-      <h2>1) 연결 설정</h2>
-      <label for="apiBase">연결 주소</label>
-      <input id="apiBase" value="http://localhost:4173" />
-      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:#1d2b3a;">
-        <input id="offlineMode" type="checkbox" style="width:auto;" />
-        서버 없이 사용 (오프라인)
-      </label>
-      <p class="help">오프라인에서는 기획 문서 URL 자동 불러오기는 안 되고, 아래 요약칸 붙여넣기로 생성됩니다.</p>
-    </div>
+	    <div class="block">
+	      <h2>1) 연결 설정</h2>
+	      <label for="apiBase">공용 서버 주소</label>
+	      <input id="apiBase" value="https://ds-copilot-demo.onrender.com" />
+	      <p class="help">팀이 같이 쓰려면 여기에 공용 주소(예: https://...onrender.com)를 넣어야 합니다. 로컬(localhost)은 내 컴퓨터에서만 동작합니다.</p>
+	      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:#1d2b3a;">
+	        <input id="offlineMode" type="checkbox" style="width:auto;" />
+	        서버 없이 사용 (오프라인)
+	      </label>
+	      <p class="help">오프라인에서는 기획 문서 URL 자동 불러오기는 안 되고, 아래 요약칸 붙여넣기로 생성됩니다.</p>
+	    </div>
 
-    <div class="block">
-      <h2>2) 요구사항 입력</h2>
-      <label for="prompt">요청 내용</label>
-      <textarea id="prompt">예약 취소 팝업을 만들어줘. 사유 선택 후 상세 입력, 완료 시 토스트.</textarea>
-      <label for="contextUrl">기획 문서 URL (Confluence)</label>
-      <input id="contextUrl" placeholder="https://.../wiki/..." />
-      <label for="contextSearchQuery">컨플 문서 검색</label>
-      <input id="contextSearchQuery" placeholder="예: 예약 취소, 판매 캘린더" />
-      <div class="row2" style="margin-top:8px;">
-        <button class="ghost" id="searchContextBtn">컨플 문서 찾기</button>
-        <button class="ghost" id="pickContextResultBtn">선택 문서 링크 채우기</button>
-      </div>
+	    <div class="block">
+	      <h2>2) 요구사항 입력</h2>
+	      <label for="prompt">요청 내용</label>
+	      <textarea id="prompt" placeholder="예: 예약 취소 플로우. 사유 선택 -> 상세 입력 -> 완료 시 토스트."></textarea>
+	      <label for="contextUrl">컨플 문서 링크</label>
+	      <input id="contextUrl" placeholder="https://.../wiki/..." />
+	      <div class="status-row" style="margin-top:8px;">
+	        <span class="chip" id="confluenceStatus">컨플 연결: 안 됨</span>
+	      </div>
+	      <label for="confluenceEmail">컨플 로그인 이메일</label>
+	      <input id="confluenceEmail" placeholder="name@company.com" />
+	      <label for="confluenceApiToken">컨플 API 토큰</label>
+	      <input id="confluenceApiToken" type="password" placeholder="토큰 붙여넣기 (저장 후 자동 삭제)" />
+	      <div class="row2" style="margin-top:8px;">
+	        <button class="ghost" id="confluenceSaveBtn">내 계정 저장</button>
+	        <button class="ghost" id="confluenceCheckBtn">연결 상태 확인</button>
+	      </div>
+	      <p class="help">토큰은 플러그인에 저장하지 않고, 공용 서버에만 보관됩니다.</p>
+	      <label for="contextSearchQuery">컨플 문서 검색</label>
+	      <input id="contextSearchQuery" placeholder="예: 예약 취소, 판매 캘린더" />
+	      <div class="row2" style="margin-top:8px;">
+	        <button class="ghost" id="searchContextBtn">컨플 문서 찾기</button>
+	        <button class="ghost" id="pickContextResultBtn">선택 문서 링크 채우기</button>
+	      </div>
       <select id="contextSearchResults" style="margin-top:8px;">
         <option value="">검색 결과 없음</option>
       </select>
-      <label for="contextText">기획 문서 요약/핵심 요구</label>
-      <textarea id="contextText" placeholder="URL 불러오기를 누르면 자동 입력됩니다. 직접 붙여넣어도 됩니다."></textarea>
+	      <label for="contextText">기획 문서 요약/핵심 요구 (자동 또는 복붙)</label>
+	      <textarea id="contextText" placeholder="컨플 연동이 아직 안 되어있으면, 여기에 기획서 내용을 그대로 복붙해도 됩니다."></textarea>
       <div class="row2" style="margin-top:8px;">
         <button class="ghost" id="loadContextUrlBtn">기획문서 불러오기</button>
         <button class="ghost" id="readSelectionContextBtn">선택화면 맥락 읽기</button>
       </div>
-      <label for="schemaUrl">데이터 문서 URL (선택)</label>
-      <input id="schemaUrl" placeholder="https://.../openapi.json" />
+	      <label for="schemaUrl">데이터 문서 링크 (선택)</label>
+	      <input id="schemaUrl" placeholder="https://.../openapi.json" />
       <label for="schema">데이터 예시/스키마</label>
       <textarea id="schema">{"cancelReason":["고객요청","중복예약","기타"]}</textarea>
       <div class="row3" style="margin-top:8px;">
@@ -260,22 +273,27 @@ https://www.figma.com/design/Fwwye9jrFkhLK57DbiVEj9/PDS--Component-v.5.9.5?m=aut
       const projectIdEl = document.getElementById('projectId');
       const projectSelectEl = document.getElementById('projectSelect');
       const rankingPresetEl = document.getElementById('rankingPreset');
-      const rankingPolicyOverrideEl = document.getElementById('rankingPolicyOverride');
-      const libraryUrlsEl = document.getElementById('libraryUrls');
-      const apiBaseEl = document.getElementById('apiBase');
-      const flowChipEl = document.getElementById('flowChip');
-      const projectChipEl = document.getElementById('projectChip');
-      const boundsChipEl = document.getElementById('boundsChip');
+	      const rankingPolicyOverrideEl = document.getElementById('rankingPolicyOverride');
+	      const libraryUrlsEl = document.getElementById('libraryUrls');
+	      const apiBaseEl = document.getElementById('apiBase');
+	      const confluenceStatusEl = document.getElementById('confluenceStatus');
+	      const confluenceEmailEl = document.getElementById('confluenceEmail');
+	      const confluenceApiTokenEl = document.getElementById('confluenceApiToken');
+	      const flowChipEl = document.getElementById('flowChip');
+	      const projectChipEl = document.getElementById('projectChip');
+	      const boundsChipEl = document.getElementById('boundsChip');
       const progressFillEl = document.getElementById('progressFill');
       const progressTextEl = document.getElementById('progressText');
       const DRAFT_KEY = 'ds-copilot-figma-plugin-draft-v1';
       let lastResponse = null;
-      let lastMatrix = null;
-      let selectedBounds = null;
-      let selectedContextText = '';
-      let proxySeq = 0;
-      const proxyWaiters = new Map();
-      let contextSearchItems = [];
+	      let lastMatrix = null;
+	      let selectedBounds = null;
+	      let selectedContextText = '';
+	      let confluenceConnectToken = '';
+	      let confluenceSessionToken = '';
+	      let proxySeq = 0;
+	      const proxyWaiters = new Map();
+	      let contextSearchItems = [];
       let loadingTimer = null;
       let loadingValue = 0;
 
@@ -349,25 +367,28 @@ https://www.figma.com/design/Fwwye9jrFkhLK57DbiVEj9/PDS--Component-v.5.9.5?m=aut
         setFlow(errorLabel);
       }
 
-      function saveDraft() {
-        const payload = {
-          apiBase: apiBaseEl.value,
-          offlineMode: offlineModeEl.checked,
-          prompt: promptEl.value,
-          contextUrl: contextUrlEl.value,
-          contextSearchQuery: contextSearchQueryEl.value,
-          contextText: contextTextEl.value,
-          schemaUrl: schemaUrlEl.value,
-          schema: schemaEl.value,
-          editInstruction: editInstructionEl.value,
-          fidelity: fidelityEl.value,
-          projectId: projectIdEl.value,
-          rankingPreset: rankingPresetEl.value,
-          rankingPolicyOverride: rankingPolicyOverrideEl.value,
-          libraryUrls: libraryUrlsEl.value
-        };
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
-      }
+	      function saveDraft() {
+	        const payload = {
+	          apiBase: apiBaseEl.value,
+	          offlineMode: offlineModeEl.checked,
+	          prompt: promptEl.value,
+	          contextUrl: contextUrlEl.value,
+	          contextSearchQuery: contextSearchQueryEl.value,
+	          contextText: contextTextEl.value,
+	          schemaUrl: schemaUrlEl.value,
+	          schema: schemaEl.value,
+	          editInstruction: editInstructionEl.value,
+	          fidelity: fidelityEl.value,
+	          projectId: projectIdEl.value,
+	          rankingPreset: rankingPresetEl.value,
+	          rankingPolicyOverride: rankingPolicyOverrideEl.value,
+	          libraryUrls: libraryUrlsEl.value,
+	          confluenceConnectToken,
+	          confluenceSessionToken,
+	          confluenceEmail: confluenceEmailEl.value
+	        };
+	        localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+	      }
 
       function loadDraft() {
         try {
@@ -384,14 +405,17 @@ https://www.figma.com/design/Fwwye9jrFkhLK57DbiVEj9/PDS--Component-v.5.9.5?m=aut
           if (typeof draft.schema === 'string') schemaEl.value = draft.schema;
           if (typeof draft.editInstruction === 'string') editInstructionEl.value = draft.editInstruction;
           if (typeof draft.fidelity === 'string') fidelityEl.value = draft.fidelity;
-          if (typeof draft.projectId === 'string') projectIdEl.value = draft.projectId;
-          if (typeof draft.rankingPreset === 'string') rankingPresetEl.value = draft.rankingPreset;
-          if (typeof draft.rankingPolicyOverride === 'string') rankingPolicyOverrideEl.value = draft.rankingPolicyOverride;
-          if (typeof draft.libraryUrls === 'string') libraryUrlsEl.value = draft.libraryUrls;
-        } catch (e) {
-          // ignore bad draft
-        }
-      }
+	          if (typeof draft.projectId === 'string') projectIdEl.value = draft.projectId;
+	          if (typeof draft.rankingPreset === 'string') rankingPresetEl.value = draft.rankingPreset;
+	          if (typeof draft.rankingPolicyOverride === 'string') rankingPolicyOverrideEl.value = draft.rankingPolicyOverride;
+	          if (typeof draft.libraryUrls === 'string') libraryUrlsEl.value = draft.libraryUrls;
+	          if (typeof draft.confluenceConnectToken === 'string') confluenceConnectToken = draft.confluenceConnectToken;
+	          if (typeof draft.confluenceSessionToken === 'string') confluenceSessionToken = draft.confluenceSessionToken;
+	          if (typeof draft.confluenceEmail === 'string') confluenceEmailEl.value = draft.confluenceEmail;
+	        } catch (e) {
+	          // ignore bad draft
+	        }
+	      }
 
       function parseOverride() {
         try {
@@ -423,28 +447,32 @@ https://www.figma.com/design/Fwwye9jrFkhLK57DbiVEj9/PDS--Component-v.5.9.5?m=aut
         };
       }
 
-      async function apiRequest(url, options = {}) {
-        if (offlineModeEl.checked) {
-          throw new Error('오프라인 모드입니다. 서버 호출 기능은 사용할 수 없습니다.');
-        }
-        const requestId = `req_${Date.now()}_${++proxySeq}`;
-        const payload = {
-          type: 'proxy-fetch',
-          requestId,
-          url,
-          method: options.method || 'GET',
-          headers: options.headers || {},
-          body: options.body
-        };
-        return await new Promise((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            proxyWaiters.delete(requestId);
-            reject(new Error('서버 응답 대기시간이 초과되었습니다.'));
-          }, 30000);
-          proxyWaiters.set(requestId, { resolve, reject, timeout });
-          parent.postMessage({ pluginMessage: payload }, '*');
-        });
-      }
+	      async function apiRequest(url, options = {}) {
+	        if (offlineModeEl.checked) {
+	          throw new Error('오프라인 모드입니다. 서버 호출 기능은 사용할 수 없습니다.');
+	        }
+	        const headers = { ...(options.headers || {}) };
+	        if (confluenceSessionToken && !headers.Authorization) {
+	          headers.Authorization = `Bearer ${confluenceSessionToken}`;
+	        }
+	        const requestId = `req_${Date.now()}_${++proxySeq}`;
+	        const payload = {
+	          type: 'proxy-fetch',
+	          requestId,
+	          url,
+	          method: options.method || 'GET',
+	          headers,
+	          body: options.body
+	        };
+	        return await new Promise((resolve, reject) => {
+	          const timeout = setTimeout(() => {
+	            proxyWaiters.delete(requestId);
+	            reject(new Error('서버 응답 대기시간이 초과되었습니다.'));
+	          }, 30000);
+	          proxyWaiters.set(requestId, { resolve, reject, timeout });
+	          parent.postMessage({ pluginMessage: payload }, '*');
+	        });
+	      }
 
       function localBuildPlan({ prompt, schemaText, contextText, editInstruction, fidelity }) {
         const text = [prompt, contextText, editInstruction].join('\n').toLowerCase();
@@ -901,14 +929,15 @@ https://www.figma.com/design/Fwwye9jrFkhLK57DbiVEj9/PDS--Component-v.5.9.5?m=aut
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contextUrl: contextUrlEl.value.trim() })
         });
-        const data = response.data || {};
-        if (!response.ok) {
-          const detail = data.detail || data.error || '기획 문서 불러오기 실패';
-          throw new Error(
-            `기획문서 불러오기 실패: ${detail}\n` +
-            '확인: 1) URL이 실제 페이지인지 2) 서버 권한(토큰) 설정 3) DS_ALLOWED_CONTEXT_HOSTS 도메인 허용'
-          );
-        }
+	        const data = response.data || {};
+	        if (!response.ok) {
+	          const detail = data.detail || data.error || '기획 문서 불러오기 실패';
+	          throw new Error(
+	            `컨플 문서 불러오기 실패: ${detail}\n` +
+	            '대부분의 경우: 공용 서버에 "컨플 연결(권한)"이 아직 설정되지 않았거나, 링크가 접근 불가(권한 없음)입니다.\n' +
+	            '임시 해결: 아래 "기획 문서 요약/핵심 요구" 칸에 기획서 내용을 복붙해서 진행하세요.'
+	          );
+	        }
         contextTextEl.value = data.contextText || '';
         saveDraft();
         resultEl.textContent = JSON.stringify(data, null, 2);
@@ -929,10 +958,10 @@ https://www.figma.com/design/Fwwye9jrFkhLK57DbiVEj9/PDS--Component-v.5.9.5?m=aut
           .join('');
       }
 
-      async function searchContextDocuments() {
-        if (offlineModeEl.checked) {
-          throw new Error('오프라인 모드에서는 컨플 문서 검색이 안 됩니다.');
-        }
+	      async function searchContextDocuments() {
+	        if (offlineModeEl.checked) {
+	          throw new Error('오프라인 모드에서는 컨플 문서 검색이 안 됩니다.');
+	        }
         const query = contextSearchQueryEl.value.trim();
         if (!query) throw new Error('검색어를 입력하세요.');
         startLoading('컨플 문서 검색중');
@@ -945,47 +974,110 @@ https://www.figma.com/design/Fwwye9jrFkhLK57DbiVEj9/PDS--Component-v.5.9.5?m=aut
         if (!response.ok) throw new Error(data.error || data.detail || '컨플 문서 검색 실패');
         renderContextSearchResults(data.items || []);
         resultEl.textContent = JSON.stringify(data, null, 2);
-        stopLoading(`문서 ${Number(data.count || 0)}건 찾음`);
-      }
+	        stopLoading(`문서 ${Number(data.count || 0)}건 찾음`);
+	      }
 
-      function pickContextResult() {
-        const idx = Number(contextSearchResultsEl.value);
-        const item = contextSearchItems[idx];
-        if (!item || !item.url) throw new Error('선택한 문서의 URL이 없습니다.');
+	      function setConfluenceStatus(text) {
+	        if (confluenceStatusEl) confluenceStatusEl.textContent = text;
+	      }
+
+	      async function checkConfluenceConnection() {
+	        if (offlineModeEl.checked) {
+	          setConfluenceStatus('컨플 연결: 오프라인');
+	          return;
+	        }
+	        if (!confluenceSessionToken) {
+	          setConfluenceStatus('컨플 연결: 안 됨');
+	          return;
+	        }
+	        try {
+	          const response = await apiRequest(`${apiBaseEl.value}/api/auth/confluence/me`);
+	          if (response.ok) {
+	            if (response.data?.mode === 'oauth') {
+	              const name = response.data?.resourceName ? ` (${response.data.resourceName})` : '';
+	              setConfluenceStatus(`컨플 연결: 됨(OAuth)${name}`);
+	            } else {
+	              const name = response.data?.verified?.displayName ? ` (${response.data.verified.displayName})` : '';
+	              setConfluenceStatus(`컨플 연결: 됨(개인)${name}`);
+	            }
+	          } else {
+	            setConfluenceStatus('컨플 연결: 안 됨');
+	          }
+	        } catch (e) {
+	          setConfluenceStatus('컨플 연결: 확인 실패');
+	        }
+	      }
+
+	      async function saveConfluencePersonalToken() {
+	        if (offlineModeEl.checked) throw new Error('오프라인 모드에서는 컨플 연결을 할 수 없습니다.');
+	        const email = confluenceEmailEl.value.trim();
+	        const apiToken = confluenceApiTokenEl.value.trim();
+	        if (!email) throw new Error('컨플 이메일을 입력하세요.');
+	        if (!apiToken) throw new Error('컨플 API 토큰을 붙여넣으세요.');
+	        startLoading('컨플 연결중(개인 토큰)');
+	        setProgress(10);
+	        const response = await apiRequest(`${apiBaseEl.value}/api/auth/confluence/personal/start`, {
+	          method: 'POST',
+	          headers: { 'Content-Type': 'application/json' },
+	          body: JSON.stringify({ email, apiToken })
+	        });
+	        const data = response.data || {};
+	        if (!response.ok) throw new Error(data.detail || data.error || '컨플 연결 실패');
+	        confluenceSessionToken = String(data.sessionToken || '').trim();
+	        confluenceApiTokenEl.value = ''; // do not keep token in UI
+	        saveDraft();
+	        await checkConfluenceConnection();
+	        stopLoading('컨플 연결 완료');
+	      }
+
+	      async function finalizeConfluenceConnect() {
+	        // Keep the existing button label: it now just re-checks connection.
+	        await checkConfluenceConnection();
+	      }
+
+	      function pickContextResult() {
+	        const idx = Number(contextSearchResultsEl.value);
+	        const item = contextSearchItems[idx];
+	        if (!item || !item.url) throw new Error('선택한 문서의 URL이 없습니다.');
         contextUrlEl.value = item.url;
         saveDraft();
         setFlow('문서 링크 채움');
       }
 
-      async function confluenceOneClick() {
-        if (offlineModeEl.checked) {
-          throw new Error('컨플 자동 연동은 오프라인 모드에서 사용할 수 없습니다.');
-        }
-        startLoading('컨플 문서 기반 생성중');
+	      async function confluenceOneClick() {
+	        if (offlineModeEl.checked) {
+	          throw new Error('컨플 자동 연동은 오프라인 모드에서 사용할 수 없습니다.');
+	        }
+	        startLoading('컨플 문서 기반 생성중');
+	        setProgress(10);
 
-        if (!contextUrlEl.value.trim()) {
-          const query = contextSearchQueryEl.value.trim() || promptEl.value.trim();
-          if (!query) throw new Error('검색어 또는 요청 내용을 입력하세요.');
+	        if (!contextUrlEl.value.trim()) {
+	          setProgress(20);
+	          const query = contextSearchQueryEl.value.trim() || promptEl.value.trim();
+	          if (!query) throw new Error('검색어 또는 요청 내용을 입력하세요.');
 
-          const searchResponse = await apiRequest(`${apiBaseEl.value}/api/context/search`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query })
-          });
-          const searchData = searchResponse.data || {};
-          if (!searchResponse.ok) throw new Error(searchData.error || searchData.detail || '컨플 문서 검색 실패');
-          renderContextSearchResults(searchData.items || []);
+	          const searchResponse = await apiRequest(`${apiBaseEl.value}/api/context/search`, {
+	            method: 'POST',
+	            headers: { 'Content-Type': 'application/json' },
+	            body: JSON.stringify({ query })
+	          });
+	          const searchData = searchResponse.data || {};
+	          if (!searchResponse.ok) throw new Error(searchData.error || searchData.detail || '컨플 문서 검색 실패');
+	          renderContextSearchResults(searchData.items || []);
 
-          const first = contextSearchItems[0];
-          if (!first || !first.url) throw new Error('검색 결과에서 문서를 찾지 못했습니다.');
-          contextUrlEl.value = first.url;
-        }
+	          const first = contextSearchItems[0];
+	          if (!first || !first.url) throw new Error('검색 결과에서 문서를 찾지 못했습니다.');
+	          contextUrlEl.value = first.url;
+	        }
 
-        await loadContextUrl();
-        await doGenerate();
-        await doRenderSingle();
-        stopLoading('컨플 기반 생성 완료');
-      }
+	        setProgress(40);
+	        await loadContextUrl();
+	        setProgress(65);
+	        await doGenerate();
+	        setProgress(85);
+	        await doRenderSingle();
+	        stopLoading('컨플 기반 생성 완료');
+	      }
 
       function requestSelectionContext() {
         parent.postMessage({ pluginMessage: { type: 'selection-context-request' } }, '*');
@@ -1028,14 +1120,32 @@ https://www.figma.com/design/Fwwye9jrFkhLK57DbiVEj9/PDS--Component-v.5.9.5?m=aut
         }
       };
 
-      document.getElementById('searchContextBtn').onclick = async () => {
-        try {
-          await searchContextDocuments();
-        } catch (error) {
-          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
-          failLoading('context search error');
-        }
-      };
+	      document.getElementById('searchContextBtn').onclick = async () => {
+	        try {
+	          await searchContextDocuments();
+	        } catch (error) {
+	          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+	          failLoading('context search error');
+	        }
+	      };
+
+	      document.getElementById('confluenceSaveBtn').onclick = async () => {
+	        try {
+	          await saveConfluencePersonalToken();
+	        } catch (error) {
+	          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+	          failLoading('confluence connect error');
+	        }
+	      };
+
+	      document.getElementById('confluenceCheckBtn').onclick = async () => {
+	        try {
+	          await finalizeConfluenceConnect();
+	        } catch (error) {
+	          resultEl.textContent = JSON.stringify({ error: String(error) }, null, 2);
+	          failLoading('confluence connect check error');
+	        }
+	      };
 
       document.getElementById('pickContextResultBtn').onclick = () => {
         try {
@@ -1143,9 +1253,14 @@ https://www.figma.com/design/Fwwye9jrFkhLK57DbiVEj9/PDS--Component-v.5.9.5?m=aut
         saveDraft();
       };
 
-      [apiBaseEl, offlineModeEl, promptEl, contextUrlEl, contextSearchQueryEl, contextTextEl, schemaUrlEl, schemaEl, editInstructionEl, projectIdEl, rankingPresetEl, rankingPolicyOverrideEl, libraryUrlsEl].forEach((el) => {
-        el.addEventListener('input', saveDraft);
-      });
+	      [apiBaseEl, offlineModeEl, promptEl, contextUrlEl, contextSearchQueryEl, contextTextEl, schemaUrlEl, schemaEl, editInstructionEl, projectIdEl, rankingPresetEl, rankingPolicyOverrideEl, libraryUrlsEl, confluenceEmailEl].forEach((el) => {
+	        el.addEventListener('input', saveDraft);
+	      });
+
+	      offlineModeEl.addEventListener('change', () => {
+	        saveDraft();
+	        checkConfluenceConnection();
+	      });
 
       document.addEventListener('keydown', (event) => {
         if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
@@ -1189,8 +1304,9 @@ https://www.figma.com/design/Fwwye9jrFkhLK57DbiVEj9/PDS--Component-v.5.9.5?m=aut
         }
       };
 
-      loadDraft();
-      setFlow('대기');
-    </script>
+	      loadDraft();
+	      checkConfluenceConnection();
+	      setFlow('대기');
+	    </script>
   </body>
 </html>
